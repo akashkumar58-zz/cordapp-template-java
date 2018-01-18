@@ -3,10 +3,7 @@ package com.template;
 import co.paralleluniverse.fibers.Suspendable;
 import com.google.common.collect.ImmutableList;
 import net.corda.confidential.IdentitySyncFlow;
-import net.corda.core.contracts.Command;
-import net.corda.core.contracts.StateAndContract;
-import net.corda.core.contracts.StateAndRef;
-import net.corda.core.contracts.UniqueIdentifier;
+import net.corda.core.contracts.*;
 import net.corda.core.flows.*;
 import net.corda.core.identity.Party;
 import net.corda.core.transactions.SignedTransaction;
@@ -23,7 +20,7 @@ import static net.corda.core.contracts.ContractsDSL.requireThat;
 
 @InitiatingFlow
 @StartableByRPC
-public class LegalFlow extends FlowLogic<Void> {
+public class LegalFlow extends FlowLogic<Void>{
     //private NDAState inputState;
     private final UniqueIdentifier linearId;
     private final Party crmParty;
@@ -31,10 +28,9 @@ public class LegalFlow extends FlowLogic<Void> {
 
     public LegalFlow(UniqueIdentifier linearId, Party crmParty) {
         this.linearId = linearId;
-        this.isLegalApproved = "APPROVED";
+        isLegalApproved = "APPROVED";
         this.crmParty = crmParty;
     }
-
     /**
      * The progress tracker provides checkpoints indicating the progress of the flow to observers.
      */
@@ -54,7 +50,7 @@ public class LegalFlow extends FlowLogic<Void> {
         // We retrieve the notary identity from the network map.
         final Party notary = getServiceHub().getNetworkMapCache().getNotaryIdentities().get(0);
         QueryCriteria queryCriteria = new QueryCriteria.LinearStateQueryCriteria(null, ImmutableList.of(this.linearId),
-                                                Vault.StateStatus.UNCONSUMED, null);
+                Vault.StateStatus.UNCONSUMED, null);
         List<StateAndRef<NDAState>> ndaStates = getServiceHub().getVaultService().queryBy(NDAState.class, queryCriteria).getStates();
 
         // We create the transaction components.
@@ -65,14 +61,19 @@ public class LegalFlow extends FlowLogic<Void> {
 
         // We create a transaction builder and add the components.
         final TransactionBuilder txBuilder = new TransactionBuilder();
-        txBuilder.setNotary(notary);
         txBuilder.addInputState(ndaStates.get(0));
+        txBuilder.setNotary(notary);
         txBuilder.withItems(outputStateAndContract, cmd);
 
         // Signing the transaction.
         final SignedTransaction signedTx = getServiceHub().signInitialTransaction(txBuilder);
+        // Creating a session with the other party.
+        FlowSession otherpartySession = initiateFlow(crmParty);
+        // Obtaining the counterparty's signature.
+        SignedTransaction fullySignedTx = subFlow(new CollectSignaturesFlow(
+                signedTx, ImmutableList.of(otherpartySession), CollectSignaturesFlow.tracker()));
         // Finalising the transaction.
-        subFlow(new FinalityFlow(signedTx));
+        subFlow(new FinalityFlow(fullySignedTx));
         return null;
     }
 }

@@ -8,16 +8,17 @@ import net.corda.core.utilities.ProgressTracker;
 
 import static net.corda.core.contracts.ContractsDSL.requireThat;
 
-@InitiatedBy(CRMFlow.class)
-public class LegalResponder extends FlowLogic<Void> {
+// Define IOUFlowResponder:
+@InitiatedBy(LegalFlow.class)
+public class CRMResponder extends FlowLogic<SignedTransaction> {
     private final FlowSession otherPartySession;
-    public LegalResponder(FlowSession otherPartySession) {
+    public CRMResponder(FlowSession otherPartySession) {
         this.otherPartySession = otherPartySession;
     }
 
     @Suspendable
     @Override
-    public Void call() throws FlowException {
+    public SignedTransaction call() throws FlowException {
         class SignTxFlow extends SignTransactionFlow {
             private SignTxFlow(FlowSession otherPartySession, ProgressTracker progressTracker) {
                 super(otherPartySession, progressTracker);
@@ -29,12 +30,11 @@ public class LegalResponder extends FlowLogic<Void> {
                     require.using("This must be an IOU transaction.", output instanceof NDAState);
                     NDAState nda = (NDAState) output;
                     require.using("The IOU's value can't be too high.",
-                            nda.getIsLegalApproved().equalsIgnoreCase("APPROVED"));
+                            nda.getIsLegalApproved().equalsIgnoreCase("PENDING"));
                     return null;
                 });
             }
         }
-        subFlow(new SignTxFlow(otherPartySession, SignTransactionFlow.Companion.tracker()));
-        return null;
+        return subFlow(new SignTxFlow(otherPartySession, SignTransactionFlow.Companion.tracker()));
     }
 }

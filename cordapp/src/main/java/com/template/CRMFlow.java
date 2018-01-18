@@ -4,12 +4,15 @@ import co.paralleluniverse.fibers.Suspendable;
 import com.google.common.collect.ImmutableList;
 import net.corda.confidential.IdentitySyncFlow;
 import net.corda.core.contracts.Command;
+import net.corda.core.contracts.ContractState;
 import net.corda.core.contracts.StateAndContract;
 import net.corda.core.flows.*;
 import net.corda.core.identity.Party;
 import net.corda.core.transactions.SignedTransaction;
 import net.corda.core.transactions.TransactionBuilder;
 import net.corda.core.utilities.ProgressTracker;
+import org.apache.qpid.proton.amqp.transport.Flow;
+
 import java.security.PublicKey;
 import java.util.List;
 
@@ -29,7 +32,7 @@ public class CRMFlow extends FlowLogic<Void>{
 
     public CRMFlow(Party legalParty) {
         this.legalParty = legalParty;
-        this.isLegalApproved = "PENDING";
+        this.isLegalApproved = "APPROVED";
     }
 
     @Override
